@@ -6,17 +6,16 @@ import hou
 class WorkItems:
     def __init__(self):
         super().__init__()
-        
         selected_nodes = hou.selectedNodes()
         if not selected_nodes:
-            hou.ui.displayMessage("No nodes selected.")
-            raise ValueError("No nodes selected.")
-
+            hou.ui.displayMessage("No hay nodos seleccionados.")
+            raise ValueError("No hay nodos seleccionados.")
+        
         self.node = selected_nodes[0]
         self.parent = self.node.parent()
         self.geo = self.node.geometry()
         if not self.geo:
-            raise ValueError("The selected node has no geometry.")
+            raise ValueError("El nodo seleccionado no tiene geometría.")
 
         self.att_name = []
         self.att_material = []
@@ -26,20 +25,25 @@ class WorkItems:
 
         merge_name = "merge_all"
         self.merge = self.parent.node(merge_name) or self.parent.createNode("merge", merge_name)
+        
 
     def validate_attributes(self):
-        """ Validates that the required attributes exist in the geometry."""
+        """
+        Valida que los atributos necesarios existan en la geometría.
+        """
         if not self.geo.findPrimAttrib("name"):
-            raise ValueError("The attribute 'name' does not exist in the primitives.")
+            raise ValueError("El atributo 'name' no existe en los primitivos.")
         if not self.geo.findPrimAttrib("shop_materialpath"):
-            raise ValueError("The attribute 'shopmaterial_path' does not exist in the primitives.")
+            raise ValueError("El atributo 'shop_materialpath' no existe en los primitivos.")
 
     def initialize_attributes(self):
-        """Validate the attributes and fill in the necessary lists. """
+        """
+        Valida los atributos y llena las listas necesarias.
+        """
         self.validate_attributes()
         self.att_name = list(set(self.geo.primStringAttribValues("name")))
         self.att_material = list(set(self.geo.primStringAttribValues("shop_materialpath")))
-        
+                
         
         
         
@@ -59,52 +63,36 @@ class WorkItems:
         prim_list = [i.name() for i in self.prim_groups]
         return prim_list
         
-    def generate_group(self, groups):
-        """Generates blast nodes for each group provided."""
-        for group_name in groups:
-            # Sanitizar el nombre del grupo
-            sanitized = re.sub(r'[^\w]', '_', group_name)
+    def generate_group(self, name):
+        
+        names = name
+        
+        for i in names:
+            sanitized = re.sub(r'[^\w]', '_', i.name())
             if sanitized[0].isdigit():  # Si comienza con un número, añadir prefijo
                 sanitized = f"n_{sanitized}"
             blast_name = f"{sanitized}"
-    
+
+        
             # Verificar si ya existe el nodo blast
             blast = self.parent.node(blast_name)
             if blast:
-                print(f"Node '{blast_name}' already exists.")
+                print(f"El nodo '{blast_name}' ya existe.")
             else:
+#                print(f"Creando el nodo '{blast_name}'...")
                 blast = self.node.createOutputNode("blast", blast_name)
-                blast.parm("group").set(group_name)  # Asignar el grupo al parámetro del nodo blast
+                blast.parm("group").set(blast_name)
                 blast.parm("negate").set(True)
                 self.merge.setNextInput(blast)
-
             
-    def generate_name(self, name):
-        """ Generates blast nodes for each group provided. """
-        for group_name in name:
-            # Sanitizar el nombre del grupo
-            sanitized = re.sub(r'[^\w]', '_', group_name)
-            if sanitized[0].isdigit():  # Si comienza con un número, añadir prefijo
-                sanitized = f"n_{sanitized}"
-            blast_name = f"{sanitized}"
         
-            # Verificar si ya existe el nodo blast
-            blast = self.parent.node(blast_name)
-            if blast:
-                print(f"The node '{blast_name}' already exists.")
-            else:
-                blast = self.node.createOutputNode("blast", blast_name)
-                blast.parm("group").set(f"@name=={group_name}")  # Asignar el grupo al parámetro del nodo blast
-                blast.parm("negate").set(True)
-                self.merge.setNextInput(blast)    
-    def satinized(self,att):
+    def satinized(self, list,att):
         
-        self.att_material = list(set(self.geo.primStringAttribValues("shop_materialpath")))
-
+        list_value = [i for i in list if i.strip()]
+           
         att  = att
-
-        for i in self.att_material:
-            
+       
+        for i in list_value:
             # Sanitizar el nombre
             sanitized = re.sub(r'[^\w]', '_', i)
             if sanitized[0].isdigit():  # Si comienza con un número, añadir prefijo
@@ -114,9 +102,8 @@ class WorkItems:
             # Verificar si ya existe el nodo blast
             blast = self.parent.node(blast_name)
             if blast:
-                print(f"The node '{blast_name}' already exists.")
+                print(f"El nodo '{blast_name}' ya existe.")
             else:
-#                print(att, i)
 #                print(f"Creando el nodo '{blast_name}'...")
                 blast = self.node.createOutputNode("blast", blast_name)
                 blast.parm("group").set(f"@{att}={i}")
@@ -125,57 +112,59 @@ class WorkItems:
         
     def split_name(self):
     
-        self.generate_name(self.att_name)
+        self.satinized(self.att_name, "name")
         self.parent.layoutChildren()
 
     
     def split_shop_material(self):
-        self.satinized("shop_materialpath")                
+        
+        self.satinized(self.att_material, "shop_materialpath")                
         self.parent.layoutChildren()
         
     
     def split_custom(self, custom_name):
-        self.att_custom = list(set(self.geo.primStringAttribValues(custom_name)))
-        
-        null = ""
         
 
-        for i in self.att_custom:         
-            name = i
-
-            blast_name = "blast_custom"
-            blast = self.parent.node(blast_name)
-            if blast:
-                print(f"The node '{blast_name}' already exists.")
-            else:
-#           #     print(f"Creando el nodo '{blast_name}'...")
-                blast = self.node.createOutputNode("blast")
-                blast.parm("group").set(f"@{custom_name}=={i}")
-                blast.parm("negate").set(True)
-                null_node = self.parent.node(null) or blast.createOutputNode("null", f"OUT_{name}")
-#                self.merge.setNextInput(blast)
-            self.parent.layoutChildren()
-            
-        
-    def split_point_group(self, list):
-        self.generate_group(list)
+        custom_name = custom_name
+        blast_name = "blast_custom"
+        blast = self.parent.node(blast_name)
+        if blast:
+            print(f"El nodo '{blast_name}' ya existe.")
+        else:
+#            print(f"Creando el nodo '{blast_name}'...")
+            blast = self.node.createOutputNode("blast", blast_name)
+            blast.parm("group").set(custom_name)
+            blast.parm("negate").set(True)
+            self.merge.setNextInput(blast)
         self.parent.layoutChildren()
         
-    def split_vertex_group(self, list):
+        
+    def split_point_group(self):
     
-        self.generate_group(list)               
+        self.generate_group(self.point_groups)                
         self.parent.layoutChildren()
         
-    def split_prim_group(self, list):
-        self.generate_group(list)                
+    def split_vertex_group(self):
+    
+        self.generate_group(self.vertex_groups)                
+        self.parent.layoutChildren()
+        
+    def split_prim_group(self):
+    
+        self.generate_group(self.prim_groups)                
         self.parent.layoutChildren()
     
         
+
+## Ejecutar
+#a = WorkItems()
+#a.split_prim_group()
+
+
 
 class Main(QtWidgets.QWidget):
     def __init__(self):
         super().__init__()
-        
         
         self.split = WorkItems()
         
@@ -227,6 +216,7 @@ class Main(QtWidgets.QWidget):
         
         h_button_layout.setSpacing(50)
         h_button_layout.setAlignment(QtCore.Qt.AlignHCenter)
+        # h_button_layout.setContentsMargins(110, 30, 30, 80)
 
 
          ##############__h_checks_Widgets###################
@@ -247,16 +237,18 @@ class Main(QtWidgets.QWidget):
         self.h_check_layout.setAlignment(QtCore.Qt.AlignAbsolute)
         h_button_layout.setAlignment(QtCore.Qt.AlignTop)
 
+        # h_button_layout.setAlignment(QtCore.Qt.AlignTop)
+        # h_check_layout.setAlignment(QtCore.Qt.AlignAbsolute)
         
         self.h_check_widget.setVisible(False)
 
+        # h_button_layout.setAlignment(QtCore.Qt.AlignTop)
 
         self.list_groups = QtWidgets.QListWidget()
-        self.list_groups.setSelectionMode(QtWidgets.QAbstractItemView.MultiSelection)
         list_layout.addWidget(self.list_groups)
         self.h_list_widget.setVisible(False)
 
-       # Add layouts to the main layout
+       # Agregar los layouts al layout principal
         main_layout.addLayout(h_layout)
         main_layout.addWidget(self.h_check_widget)  # Agregar el contenedor
         main_layout.addLayout(h_button_layout)
@@ -267,16 +259,16 @@ class Main(QtWidgets.QWidget):
         
 
     def selectionCheck(self, index):
-        selected_item = self.cbox.currentText().lower()  # Gets the selected text from the combo box
+        selected_item = self.cbox.currentText().lower()  # Obtiene el texto seleccionado del combo box
         
-          # Show/hide checkboxes layout according to selected value
+          # Mostrar/ocultar el layout de checkboxes según el valor seleccionado
         if selected_item == "group":
 
-            self.h_check_widget.setVisible(True)  # Displays the layout of checkboxes
+            self.h_check_widget.setVisible(True)  # Muestra el layout de checkboxes
             self.h_list_widget.setVisible(True)
         else:
             self.h_list_widget.setVisible(False)
-            self.h_check_widget.setVisible(False)  # Hide the checkbox layout
+            self.h_check_widget.setVisible(False)  # Oculta el layout de checkboxes
 
             
             
@@ -286,6 +278,9 @@ class Main(QtWidgets.QWidget):
             self.ledit.setVisible(True)
         else:
             self.ledit.setVisible(False)
+            
+            
+            
 
         self.update()      
 
@@ -313,38 +308,47 @@ class Main(QtWidgets.QWidget):
     def split_node(self):
         try:
             
-              # Ensures that the lists are full
+            self.split.initialize_attributes()  # Asegura que las listas estén llenas
             selected_item = self.cbox.currentText().lower()
-            # Capture the ledit text (if necessary)
-            att = self.ledit.text().strip()  
+            att = self.ledit.text().strip()  # Captura el texto de ledit (si es necesario)
     
             if selected_item == "name":
-                self.split.initialize_attributes()
                 self.split.split_name()
     
             elif selected_item == "group":
-                selected_groups = [item.text() for item in self.list_groups.selectedItems()]
                 if self.check_name == "prims":
-                    self.split.split_prim_group(selected_groups)
+                    self.split.split_prim_group()
                 elif self.check_name == "points":
-                    self.split.split_point_group(selected_groups)
+                    self.split.split_point_group()
                 elif self.check_name == "vertex":
-                    self.split.split_vertex_group(selected_groups)
+                    self.split.split_vertex_group()
     
             elif selected_item == "material":
-
                 self.split.split_shop_material()
     
             elif selected_item == "custom_att":
+                if not att:  # Validación del atributo personalizado
+                    hou.ui.displayMessage("Por favor, ingresa un atributo personalizado válido.")
+                    return
                 self.split.split_custom(att)
+    
             else:
                 hou.ui.displayMessage("Selección inválida.")
     
         except ValueError as e:
-            hou.ui.displayMessage(str(e))  # Displays error messages to the user
+            hou.ui.displayMessage(str(e))  # Muestra mensajes de error al usuario
         except Exception as e:
             hou.ui.displayMessage(f"Error inesperado: {str(e)}")  
 
    
+
+#if __name__ == '__main__':
+#    app = QtWidgets.QApplication([])
+
+
+
 window = Main()
 window.show()
+    # window.showMaximized()
+
+#    app.exec_()
