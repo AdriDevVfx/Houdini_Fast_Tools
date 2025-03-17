@@ -131,11 +131,11 @@ class WorkItems:
         if not self.geo.findPrimAttrib(custom_attr):
             print(f"Error: El atributo '{custom_attr}' no existe en los primitivos.")
             return
-        print(custom_attr)
+
         # Obtener valores únicos del atributo
         custom_list = list(set(self.geo.primStringAttribValues(custom_attr)))
         custom_list = [i for i in custom_list if i.strip()]  # Filtrar valores vacíos
-        print(custom_list)
+
 #        self.satinized(custom_list, custom_attr)
         
         self.parent.layoutChildren()
