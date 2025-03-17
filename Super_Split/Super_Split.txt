@@ -42,6 +42,7 @@ class WorkItems:
         """
         self.validate_attributes()
         self.att_name = list(set(self.geo.primStringAttribValues("name")))
+        
         self.att_material = list(set(self.geo.primStringAttribValues("shop_materialpath")))
                 
         
@@ -85,10 +86,11 @@ class WorkItems:
                 blast.parm("negate").set(True)
                 self.merge.setNextInput(blast)
             
-        
+        self.parent.layoutChildren()            
     def satinized(self, list,att):
         
         list_value = [i for i in list if i.strip()]
+
            
         att  = att
        
@@ -106,7 +108,7 @@ class WorkItems:
             else:
 #                print(f"Creando el nodo '{blast_name}'...")
                 blast = self.node.createOutputNode("blast", blast_name)
-                blast.parm("group").set(f"@{att}={i}")
+                blast.parm("group").set(f'@{att}={i}')
                 blast.parm("negate").set(True)
                 self.merge.setNextInput(blast)
         
@@ -121,23 +123,22 @@ class WorkItems:
         self.satinized(self.att_material, "shop_materialpath")                
         self.parent.layoutChildren()
         
-    
-    def split_custom(self, custom_name):
+    def split_custom(self, custom_attr):
+        """
+        Divide la geometría en función de un atributo personalizado y crea nodos Blast.
+        """
+        # Verificar si el atributo existe
+        if not self.geo.findPrimAttrib(custom_attr):
+            print(f"Error: El atributo '{custom_attr}' no existe en los primitivos.")
+            return
+        print(custom_attr)
+        # Obtener valores únicos del atributo
+        custom_list = list(set(self.geo.primStringAttribValues(custom_attr)))
+        custom_list = [i for i in custom_list if i.strip()]  # Filtrar valores vacíos
+        print(custom_list)
+#        self.satinized(custom_list, custom_attr)
         
-
-        custom_name = custom_name
-        blast_name = "blast_custom"
-        blast = self.parent.node(blast_name)
-        if blast:
-            print(f"El nodo '{blast_name}' ya existe.")
-        else:
-#            print(f"Creando el nodo '{blast_name}'...")
-            blast = self.node.createOutputNode("blast", blast_name)
-            blast.parm("group").set(custom_name)
-            blast.parm("negate").set(True)
-            self.merge.setNextInput(blast)
         self.parent.layoutChildren()
-        
         
     def split_point_group(self):
     
@@ -245,6 +246,7 @@ class Main(QtWidgets.QWidget):
         # h_button_layout.setAlignment(QtCore.Qt.AlignTop)
 
         self.list_groups = QtWidgets.QListWidget()
+        self.list_groups.setSelectionMode(QtWidgets.QAbstractItemView.MultiSelection)
         list_layout.addWidget(self.list_groups)
         self.h_list_widget.setVisible(False)
 
@@ -316,12 +318,14 @@ class Main(QtWidgets.QWidget):
                 self.split.split_name()
     
             elif selected_item == "group":
+                selected_groups = [item.text() for item in self.list_groups.selectedItems()]  # Obtener los grupos seleccionados
                 if self.check_name == "prims":
-                    self.split.split_prim_group()
+                    self.split.generate_group([g for g in self.split.prim_groups if g.name() in selected_groups])
                 elif self.check_name == "points":
-                    self.split.split_point_group()
+                    self.split.generate_group([g for g in self.split.point_groups if g.name() in selected_groups])
                 elif self.check_name == "vertex":
-                    self.split.split_vertex_group()
+                    self.split.generate_group([g for g in self.split.vertex_groups if g.name() in selected_groups])
+
     
             elif selected_item == "material":
                 self.split.split_shop_material()
