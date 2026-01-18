@@ -1,0 +1,47 @@
+sel = hou.selectedNodes()
+def check():
+    
+    if not sel:
+        hou.ui.displayMessage("No nodes selected.")
+        return False
+    return True
+        
+        
+if check():
+    parent = sel[0].parent()
+    temp_nodes = []
+    
+    for src_node in sel:
+    
+        src_icon      = src_node.type().icon()
+        src_user_data = src_node.userData("nodeshape")
+        src_color     = src_node.color()
+    
+        obj = parent.createNode("object_merge")
+    
+        # Shape
+        if src_user_data:
+            obj.setUserData("nodeshape", src_user_data)
+    
+        # Color
+        obj.setColor(src_color)
+    
+        # Name
+        obj.setName(f"ref_{src_node.name()}", unique_name=True)
+    
+        # Path
+        obj.parm("objpath1").set(src_node.path())
+    
+        temp_nodes.append(obj)
+    
+    # Layout 
+    parent.layoutChildren(items=temp_nodes)
+    
+    # Clipboard
+    hou.copyNodesToClipboard(temp_nodes)
+    
+    # Borrar temporales
+    for n in temp_nodes:
+        n.destroy()
+    
+    hou.ui.displayMessage("Copied Object Merge.\n\n Press CTRL+V where you want to ")
